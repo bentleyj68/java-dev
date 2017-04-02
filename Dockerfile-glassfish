@@ -1,0 +1,71 @@
+# Java Development Environment
+# SSH and User
+# Oracle Java 1.8.0_11 64 bit 
+# Maven 3.3.9 
+# git 1.9.1 
+
+# Use a Redhat derivative 
+FROM centos:centos7
+
+MAINTAINER Jim Bentley (http://miramtechnology.com, bentleyj68@gmail.com) 
+ENV REFRESHED_AT 2017-03-26
+
+# 1/ update yum repositories 
+# 2/ install wget
+# 3/ get maven and install
+# 4/ install git
+RUN yum update -y && \
+  yum install -y wget && \
+  wget --no-verbose -O /tmp/apache-maven-3.3.9.tar.gz http://apache.mirror.digitalpacific.com.au/maven/maven-3/3.3.9/binaries/apache-maven-3.3.9-bin.tar.gz && \
+  echo "516923b3955b6035ba6b0a5b031fbd8b /tmp/apache-maven-3.3.9.tar.gz" | md5sum -c && \
+  tar xzf /tmp/apache-maven-3.3.9.tar.gz -C /opt/ && \
+  ln -s /opt/apache-maven-3.3.9 /opt/maven && \
+  ln -s /opt/maven/bin/mvn /usr/local/bin && \
+  rm -f /tmp/apache-maven-3.3.9.tar.gz && \
+  yum install install -y git && \
+  yum clean all
+
+ENV MAVEN_HOME /opt/maven 
+
+# set shell variables for java installation 
+ENV java_version 1.8.0_121 
+ENV filename jdk-8u121-linux-x64.tar.gz 
+ENV downloadlink http://download.oracle.com/otn-pub/java/jdk/8u121-b13/e9e7ea248e2c4826b92b3f075a80e441/$filename 
+ENV JAVA_HOME /opt/java-oracle/jdk$java_version 
+# ENV PATH $JAVA_HOME/bin:$PATH 
+
+# download java, accepting the license agreement, unpack and install 
+# configure symbolic links for the java and javac executables 
+RUN wget --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" -O /tmp/$filename $downloadlink && \ 
+  mkdir /opt/java-oracle && tar -zxf /tmp/$filename -C /opt/java-oracle/ && \
+  update-alternatives --install /usr/bin/java java $JAVA_HOME/bin/java 20000 && update-alternatives --install /usr/bin/javac javac $JAVA_HOME/bin/javac 20000
+
+ENV GLASSFISH_PKG=glassfish-4.1.1.zip \ 
+  GLASSFISH_URL=http://download.oracle.com/glassfish/4.1.1/release/glassfish-4.1.1.zip \ 
+  GLASSFISH_HOME=/opt/glassfish4 \ 
+  PATH=$JAVA_HOME/bin:/opt/glassfish4/bin:$PATH \ 
+  PASSWORD=glassfish
+
+# Glassfish setup time
+RUN cd /opt && \
+    wget --no-check-certificate $GLASSFISH_URL && \
+    yum install -y unzip  && \
+    unzip $GLASSFISH_PKG && \
+    rm -f $GLASSFISH_PKG && \
+    echo "--- Setup the password file ---" && \
+    echo "AS_ADMIN_PASSWORD=" > /tmp/glassfishpwd && \
+    echo "AS_ADMIN_NEWPASSWORD=${PASSWORD}" >> /tmp/glassfishpwd  && \
+    echo "--- Enable DAS, change admin password, and secure admin access ---" && \
+    echo $PATH && \ 
+    asadmin --user=admin --passwordfile=/tmp/glassfishpwd change-admin-password --domain_name domain1 && \
+    asadmin start-domain && \
+    echo "AS_ADMIN_PASSWORD=${PASSWORD}" > /tmp/glassfishpwd && \
+    asadmin --user=admin --passwordfile=/tmp/glassfishpwd enable-secure-admin && \
+    asadmin --user=admin stop-domain && \
+    rm /tmp/glassfishpwd
+
+# Ports being exposed 
+EXPOSE 22 4848 8080 8181 
+
+# Start asadmin console and the domain 
+CMD ["asadmin", "start-domain", "-v"]
