@@ -18,7 +18,7 @@ ADD jdk-*.gz /opt/java-oracle
   RUN ln -s /opt/apache-maven-* /opt/maven && \
   ln -s /opt/maven/bin/mvn /usr/local/bin && \
   rm -f /opt/apache-maven-*.gz && \
-  ln -s /opt/java-oracle/jdk-* /opt/java-oracle/jdk && \
+  ln -s /opt/java-oracle/jdk* /opt/java-oracle/jdk && \
   yum install install -y git 
 #  yum clean all
 
